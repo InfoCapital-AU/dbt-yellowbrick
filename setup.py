@@ -85,7 +85,7 @@ setup(
     long_description_content_type="text/markdown",
     author="David Antelmi",
     author_email="david.antelmi@infocapital.com.au",
-    url="https://github.com/DA0155/dbt-yellowbrick",
+    url="https://github.com/InfoCapital-AU/dbt-yellowbrick.git",
     packages=find_namespace_packages(include=["dbt", "dbt.*"]),
     package_data={
         "dbt": [
