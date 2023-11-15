@@ -1,4 +1,5 @@
 from dbt.adapters.yellowbrick import YellowbrickConnectionManager
+from dbt.adapters.yellowbrick.relation import YellowbrickRelation
 from dbt.adapters.postgres.impl import PostgresAdapter
 from dbt.events import AdapterLogger
 from dbt.adapters.base.meta import available
@@ -16,6 +17,7 @@ logger = AdapterLogger("Yellowbrick")
 
 class YellowbrickAdapter(PostgresAdapter):
     ConnectionManager = YellowbrickConnectionManager
+    Relation = YellowbrickRelation
 
     # Override to allow cross-database queries which are supported in Yellowbrick
     # Source: https://github.com/dbt-labs/dbt-core/blob/7317de23a3199fe2f9bb212406dc523f134e7bfb/plugins/postgres/dbt/adapters/postgres/impl.py#L121C1-L128C1    
