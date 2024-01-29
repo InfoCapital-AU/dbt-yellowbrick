@@ -5,11 +5,7 @@ from dbt.events import AdapterLogger
 from dbt.adapters.base.meta import available
 
 from dbt.exceptions import (
-    CrossDbReferenceProhibitedError,
-    IndexConfigNotDictError,
-    IndexConfigError,
     DbtRuntimeError,
-    UnexpectedDbReferenceError,
     CompilationError
 )
 
