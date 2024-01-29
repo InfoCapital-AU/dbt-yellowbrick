@@ -4,21 +4,49 @@
 	<img src="https://yellowbrick.com/wp-content/uploads/2022/04/yellowbrick-logo-horizontal-gray.svg" alt="dbt logo" height="50"/>
 </p>
 
-**[dbt](https://www.getdbt.com/)** enables data analysts and engineers to transform their data using the same practices that software engineers use to build applications.
-
-dbt is the T in ELT. Organize, cleanse, denormalize, filter, rename, and pre-aggregate the raw data in your warehouse so that it's ready for analysis.
-
 ## dbt-yellowbrick
-The dbt-yellowbrick adapter allows *[dbt](https://www.getdbt.com/)* to work with *[Yellowbrick Data Warehouse](https://yellowbrick.com)* and leverage the powerful capabilities of both platforms to build data analysis workflows. This adapter is based on the *postgres-adapter* with extensions to support Yellowbrick specific features.  
+The dbt-yellowbrick adapter allows *[dbt](https://www.getdbt.com/)* to work with *[Yellowbrick Data Warehouse](https://yellowbrick.com)* and leverage the 
+powerful capabilities of both platforms to build data analysis workflows. This adapter is based on the *postgres-adapter* with 
+extensions to support Yellowbrick specific features.  
 
-The dbt-yellowbrick adapter has been developed for projects that implement *dbt-core* through the command-line interface (CLI) which is free to use and available as an [open source project](https://github.com/dbt-labs/dbt-core).
+The dbt-yellowbrick adapter has been developed for projects that implement *dbt-core* through the command-line interface (CLI) which is 
+available as an [open source project](https://github.com/dbt-labs/dbt-core).
 
-## Getting Started
+## Installation
+This project is hosted on PyPI, so you should be able to install ```dbt-yellowbrick``` and the necessary dependencies via:
 
-#### Setting up Locally
+```pip install dbt-yellowbrick```
 
-#### Connect to Github
+The latest supported version targets dbt-core 1.7.x .
 
+## dbt Profile Configuration
+Here is a basic example of a profile configuration (```profiles.yml```) to use with ```dbt-yellowbrick```.
+```yaml
+yb_test_models:
+  target: dev
+  outputs:
+    dev:
+      type: yellowbrick
+      host: <host>
+      user: <user_name>
+      password: <password>
+      port: 5432
+      dbname: <database_name>
+      schema: <schema_name>
+      threads: 1
+      connect_timeout: 30 # seconds  
+  
+    prod:
+      type: yellowbrick
+      host: <host>
+      user: <user_name>
+      password: <password>
+      port: 5432
+      dbname: <database_name>
+      schema: <schema_name>
+      threads: 1
+      connect_timeout: 30 # seconds  
+```
 
 ## Features
 dbt-yellowbrick supports the following Yellowbrick specific features:
@@ -26,15 +54,13 @@ dbt-yellowbrick supports the following Yellowbrick specific features:
 * clustering
 * sort
 * materialisations based on cross-database queries
+* incremental strategies "append" and "delete+insert"
 
-<table>
-<tr>
-<td> model config </td> <td> generated sql </td>
-</tr>
-<tr>
-<td> 
+Refer to the official [Yellowbrick documentation](https://docs.yellowbrick.com/5.2.27/) for detailed explanation of all of these.
 
-```yml
+### Some example model configurations
+* ```DISTRIBUTE REPLICATE``` with a ```SORT``` column...
+```sql
 {{
   config(
     materialized = "table",
@@ -42,9 +68,7 @@ dbt-yellowbrick supports the following Yellowbrick specific features:
     sort_col = "stadium_capacity"
   )
 }}
-```
 
-```sql
 select
     hash(stg.name) as team_key
     , stg.name as team_name
@@ -59,9 +83,7 @@ from
 where
     stg.name is not null
 ``` 
-
-</td>
-<td>
+gives the following model output:
 
 ```sql
 create table if not exists marts.dim_team as (
@@ -82,12 +104,11 @@ where
 distribute REPLICATE
 sort on (stadium_capacity);
 ```
-</td>
-</tr>
-<tr>
-<td> 
+<br>
 
-```yml 
+* ```DISTRIBUTE``` on a single column and define up to four ```CLUSTER``` columns...
+
+```sql 
 {{
   config(
     materialized = 'table',
@@ -95,8 +116,7 @@ sort on (stadium_capacity);
     cluster_cols = ['season_key', 'match_date_key', 'home_team_key', 'away_team_key']
   )
 }}
-``` 
-```sql 
+
 select
 	hash(concat_ws('||',
 	    lower(trim(s.season_name)),
@@ -119,8 +139,7 @@ from
 		inner join {{ source('premdb_public','team') }} a on (m.atid = a.atid)
 		inner join {{ source('premdb_public','season') }} s on (m.seasonid = s.seasonid)
 ```
-</td>
-<td>
+gives the following model output:
 
 ```sql
 create  table if not exists marts.fact_match as (
@@ -149,6 +168,7 @@ from
 distribute on (match_key)
 cluster on (season_key, match_date_key, home_team_key, away_team_key);
 ```
-</td>
-</tr>
-</table>
+
+## Limitations
+This is an initial implementation of the dbt adapter for Yellowbrick Data Warehouse and may not support some use cases. 
+We strongly advise validating all records or transformations resulting from the adapter output.

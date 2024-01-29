@@ -79,7 +79,7 @@ DBT_PSYCOPG2_NAME = _dbt_psycopg2_name()
 
 setup(
     name=package_name,
-    version='0.6.3',
+    version=package_version,
     description=description,
     long_description=long_description,
     long_description_content_type="text/markdown",
