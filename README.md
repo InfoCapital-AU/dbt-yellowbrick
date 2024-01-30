@@ -1,9 +1,3 @@
-<p align="center">
-	<img src="https://raw.githubusercontent.com/dbt-labs/dbt/ec7dee39f793aa4f7dd3dae37282cc87664813e4/etc/dbt-logo-full.svg" alt="dbt logo" height="50"/>
-	  
-	<img src="https://yellowbrick.com/wp-content/uploads/2022/04/yellowbrick-logo-horizontal-gray.svg" alt="dbt logo" height="50"/>
-</p>
-
 ## dbt-yellowbrick
 The dbt-yellowbrick adapter allows *[dbt](https://www.getdbt.com/)* to work with *[Yellowbrick Data Warehouse](https://yellowbrick.com)* and leverage the 
 powerful capabilities of both platforms to build data analysis workflows. This adapter is based on the *postgres-adapter* with 

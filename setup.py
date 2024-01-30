@@ -73,7 +73,7 @@ def _get_dbt_core_version():
 package_name = "dbt_yellowbrick"
 package_version = _get_package_version()
 dbt_core_version = _get_dbt_core_version()
-description = """The Yellowbrick adapter plugin for dbt (data buld tool)"""
+description = """The Yellowbrick adapter plugin for dbt (data build tool)"""
 
 DBT_PSYCOPG2_NAME = _dbt_psycopg2_name()
 
