@@ -45,3 +45,14 @@ class YellowbrickAdapter(PostgresAdapter):
 
     def valid_incremental_strategies(self):
         return ["append", "delete+insert"]
+
+    # Override with Redshift and Netezza implementation because Yellowbrick does not support `text`
+    # Source: https://github.com/dbt-labs/dbt-redshift/blob/64f6f7ba4f8fbe11d9c547f7c07faeb9b14deb83/dbt/adapters/redshift/impl.py#L54-L61
+    @classmethod
+    def convert_text_type(cls, agate_table, col_idx):
+        column = agate_table.columns[col_idx]
+        # `lens` must be a list, so this can't be a generator expression,
+        # because max() raises ane exception if its argument has no members.
+        lens = [len(d.encode("utf-8")) for d in column.values_without_nulls()]
+        max_len = max(lens) if lens else 64
+        return "varchar({})".format(max_len)
