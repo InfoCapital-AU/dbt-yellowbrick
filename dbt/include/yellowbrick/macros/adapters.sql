@@ -67,14 +67,10 @@ dbt docs: https://docs.getdbt.com/docs/contributing/building-a-new-adapter
 {% endmacro %}
 
 
-{% macro yellowbrick__truncate_relation(relation) -%}
-'''Removes all rows from a targeted set of tables.'''
-  {{ return(postgres__truncate_relation(database)) }}
-{% endmacro %}
-
 {% macro yellowbrick__current_timestamp() -%}
   {{ return(postgres__current_timestamp()) }}
 {%- endmacro %}
+
 
 {% macro yellowbrick_escape_comment(comment) -%}
   {{ return(postgres_escape_comment(comment)) }}
@@ -89,6 +85,7 @@ dbt docs: https://docs.getdbt.com/docs/contributing/building-a-new-adapter
 {% macro yellowbrick__alter_column_comment(relation, column_dict) %}
   {{ return(postgres__alter_column_comment(relation, column_dict)) }}
 {% endmacro %}
+
 
 {% macro yellowbrick__copy_grants() %}
     {{ return(False) }}
