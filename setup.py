@@ -59,7 +59,7 @@ def _get_plugin_version_dict():
 def _get_package_version():
     parts = _get_plugin_version_dict()
     minor = "{major}.{minor}.0".format(**parts)
-    pre = parts["prekind"] + "2" if parts["prekind"] else ""
+    pre = parts["prekind"] + "1" if parts["prekind"] else ""
     return f"{minor}{pre}"
 
 
