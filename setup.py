@@ -2,6 +2,7 @@
 import os
 import sys
 import re
+from pathlib import Path
 
 if sys.version_info < (3, 8):
     print("Error: dbt does not support this version of Python.")
@@ -56,30 +57,29 @@ def _get_plugin_version_dict():
         return match.groupdict()
 
 
-def _get_package_version():
-    parts = _get_plugin_version_dict()
-    minor = "{major}.{minor}.1".format(**parts)
-    pre = parts["prekind"] + "1" if parts["prekind"] else ""
-    return f"{minor}{pre}"
 
+# used for this adapter's version
+VERSION = Path(__file__).parent / "dbt/adapters/yellowbrick/__version__.py"
+dbt_core_version = "1.9.0"
+package_version = "1.9.0"
 
-def _get_dbt_core_version():
-    parts = _get_plugin_version_dict()
-    minor = "{major}.{minor}.1".format(**parts)
-    pre = parts["prekind"] + "1" if parts["prekind"] else ""
-    return f"{minor}{pre}"
+def _plugin_version() -> str:
+    """
+    Pull the package version from the main package version file
+    """
+    attributes = {}
+    exec(VERSION.read_text(), attributes)
+    return attributes["version"]
 
 
 package_name = "dbt_yellowbrick"
-package_version = _get_package_version()
-dbt_core_version = _get_dbt_core_version()
-description = """The Yellowbrick adapter plugin for dbt (data build tool)"""
+description = """The Yellowbrick Data adapter plugin for dbt (data build tool)"""
 
 DBT_PSYCOPG2_NAME = _dbt_psycopg2_name()
 
 setup(
     name=package_name,
-    version=package_version,
+    version=_plugin_version(),
     description=description,
     long_description=long_description,
     long_description_content_type="text/markdown",

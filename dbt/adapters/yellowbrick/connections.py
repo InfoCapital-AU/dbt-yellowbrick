@@ -3,8 +3,12 @@ from dbt.adapters.postgres.connections import PostgresCredentials, PostgresConne
 
 logger = AdapterLogger("Yellowbrick")
 
-
+@dataclass
 class YellowbrickCredentials(PostgresCredentials):
+    """
+    Defines database specific credentials that get added to
+    profiles.yml to connect to new adapter
+    """
 
     @property
     def type(self):

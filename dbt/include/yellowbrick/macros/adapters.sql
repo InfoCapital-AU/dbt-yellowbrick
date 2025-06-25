@@ -3,28 +3,59 @@ postgres adapter macros: https://github.com/dbt-labs/dbt-core/blob/main/plugins/
 dbt docs: https://docs.getdbt.com/docs/contributing/building-a-new-adapter
 */
 
-{% macro postgres__create_table_as(temporary, relation, sql) -%}
+{% macro create_table_with_constraints(temporary, relation, sql) %}
+    {%- set _dist = config.get('dist') -%}
+    {%- set _sort_col = config.get('sort_col') -%}
+    {%- set _cluster_cols = config.get('cluster_cols') -%}
 
-  {%- set _dist = config.get('dist') -%}
-  {%- set _sort_col = config.get('sort_col') -%}
-  {%- set _cluster_cols = config.get('cluster_cols') -%}
-  {%- set sql_header = config.get('sql_header', none) -%}
+    create {% if temporary -%}temporary{%- endif %} table
+    {{ relation }}
+    {{ get_assert_columns_equivalent(sql) }}
+    {{ get_table_columns_and_constraints() }}
+    {%- set sql = get_select_subquery(sql) %}
+    {{ dist(_dist) }}
+    {{ sort_on(_sort_col) }}
+    {{ cluster_on(_cluster_cols) }};
 
-  {{ sql_header if sql_header is not none }}
+    insert into {{ relation }}
+    {{ sql }};
+{% endmacro %}
+
+{% macro create_table_no_constraints(temporary, relation, sql) %}
+    {%- set _dist = config.get('dist') -%}
+    {%- set _sort_col = config.get('sort_col') -%}
+    {%- set _cluster_cols = config.get('cluster_cols') -%}
+
+    create {% if temporary -%}temporary{%- endif %} table
+    {{ relation }}
+    as (
+        {{ sql }}
+    )
+    {{ dist(_dist) }}
+    {{ sort_on(_sort_col) }}
+    {{ cluster_on(_cluster_cols) }}
+    ;
+{% endmacro %}
+
+{% macro yellowbrick__create_table_as(temporary, relation, sql) -%}
+    {%- set _dist = config.get('dist') -%}
+    {%- set _sort_col = config.get('sort_col') -%}
+    {%- set _cluster_cols = config.get('cluster_cols') -%}
+    {%- set sql_header = config.get('sql_header', none) -%}
+    {%- set contract_config = config.get('contract') -%}
+
+    {{ sql_header if sql_header is not none }}
 
     {{log('Distribution: ' ~ _dist, True)}}
     {{log('Sort: ' ~ _sort_col, True)}}
     {{log('Cluster: ' ~ _cluster_cols, True)}}
 
-  create {% if temporary -%}temporary{%- endif %} table if not exists
-    {{ relation }}
-  as (
-    {{ sql }}
-  )
-  {{ dist(_dist) }}
-  {{ sort_on(_sort_col) }}
-  {{ cluster_on(_cluster_cols) }}
-  ;
+    {% set contract_config = config.get('contract') %}
+    {% if contract_config.enforced %}
+        {{ create_table_with_constraints(temporary, relation, sql) }}
+    {% else %}
+        {{ create_table_no_constraints(temporary, relation, sql) }}
+    {% endif %};
 {%- endmacro %}
 
 {% macro yellowbrick__alter_column_type(relation,column_name,new_column_type) -%}
