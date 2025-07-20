@@ -60,8 +60,8 @@ def _get_plugin_version_dict():
 
 # used for this adapter's version
 VERSION = Path(__file__).parent / "dbt/adapters/yellowbrick/__version__.py"
-dbt_core_version = "1.9.0"
-package_version = "1.9.0"
+dbt_core_version = "1.10.0"
+package_version = "1.10.0"
 
 def _plugin_version() -> str:
     """
@@ -72,7 +72,7 @@ def _plugin_version() -> str:
     return attributes["version"]
 
 
-package_name = "dbt_yellowbrick"
+package_name = "dbt-yellowbrick"
 description = """The Yellowbrick Data adapter plugin for dbt (data build tool)"""
 
 DBT_PSYCOPG2_NAME = _dbt_psycopg2_name()
@@ -96,9 +96,13 @@ setup(
         ]
     },
     install_requires=[
-        "dbt-core~={}".format(dbt_core_version),
-        "dbt-postgres~={}".format(package_version),
-        "{}~=2.8".format(DBT_PSYCOPG2_NAME),
+        "psycopg2-binary>=2.9,<3.0",
+        "dbt-adapters>=1.7.0,<2.0",
+        # add dbt-core to ensure backwards compatibility of installation, this is not a functional dependency
+        "dbt-core>=1.9.0,<2.0",
+        # installed via dbt-adapters but used directly
+        "dbt-common>=1.0.4,<2.0",
+        "agate>=1.0,<2.0"
     ],
     zip_safe=False,
     classifiers=[
@@ -111,6 +115,7 @@ setup(
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12"
     ],
     python_requires=">=3.8",
 )

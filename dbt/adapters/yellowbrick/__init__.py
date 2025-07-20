@@ -6,6 +6,7 @@ from dbt.adapters.base import AdapterPlugin
 from dbt.include import yellowbrick
 
 
+
 Plugin = AdapterPlugin(
     adapter=YellowbrickAdapter,
     credentials=YellowbrickCredentials,
