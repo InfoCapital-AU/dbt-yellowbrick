@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from dbt.adapters.base.relation import BaseRelation, Policy
 from dbt.exceptions import DbtRuntimeError
 
+MAX_CHARACTERS_IN_IDENTIFIER = 127
 
 @dataclass
 class YellowbrickQuotePolicy(Policy):
@@ -30,4 +31,4 @@ class YellowbrickRelation(BaseRelation):
 
     def relation_max_name_length(self):
         # Max table name length in Yellowbrick is 128 (https://docs.yellowbrick.com/6.7.1/ybd_sqlref/create_table.html)
-        return 128
+        return MAX_CHARACTERS_IN_IDENTIFIER

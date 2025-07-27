@@ -1,5 +1,6 @@
 from dbt.adapters.yellowbrick import YellowbrickConnectionManager
 from dbt.adapters.yellowbrick.relation import YellowbrickRelation
+from dbt.adapters.yellowbrick.column import YellowbrickColumn
 from dbt.adapters.postgres.impl import PostgresAdapter
 from dbt.adapters.events.logging import AdapterLogger
 from dbt.adapters.base.meta import available
@@ -14,6 +15,7 @@ logger = AdapterLogger("Yellowbrick")
 class YellowbrickAdapter(PostgresAdapter):
     ConnectionManager = YellowbrickConnectionManager
     Relation = YellowbrickRelation
+    Column = YellowbrickColumn
 
     # Override to allow cross-database queries which are supported in Yellowbrick
     # Source: https://github.com/dbt-labs/dbt-core/blob/7317de23a3199fe2f9bb212406dc523f134e7bfb/plugins/postgres/dbt/adapters/postgres/impl.py#L121C1-L128C1    
@@ -56,19 +58,3 @@ class YellowbrickAdapter(PostgresAdapter):
         lens = [len(d.encode("utf-8")) for d in column.values_without_nulls()]
         max_len = max(lens) if lens else 64
         return "varchar({})".format(max_len)
-
-    @classmethod
-    def convert_type(self, data_type: str) -> str:
-        data_type = data_type.lower()
-        if data_type == 'name':
-            return 'varchar(64)'
-        # add other mappings as needed
-        return super().convert_type(data_type)
-
-    @classmethod
-    def get_columns_in_relation(self, relation):
-        columns = super().get_columns_in_relation(relation)
-        for col in columns:
-            if col.data_type.lower() == 'name':
-                col.data_type = 'varchar(64)'
-        return columns
