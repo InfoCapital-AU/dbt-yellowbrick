@@ -58,10 +58,40 @@ dbt docs: https://docs.getdbt.com/docs/contributing/building-a-new-adapter
     {% endif %};
 {%- endmacro %}
 
-{% macro yellowbrick__alter_column_type(relation,column_name,new_column_type) -%}
-'''Changes column name or data type'''
-  {{ return(postgres__alter_column_comment(relation, column_dict)) }}
+{#
+  Yellowbrick supports neither `alter table ... alter column ... type ...`
+  ("SET DATA TYPE is not supported") nor `alter table ... drop column ...`
+  ("DROP COLUMN is not supported"), so dbt-core's default__alter_column_type
+  (which adds a column, copies data, drops the old column, then renames) does
+  not work here. Instead, rebuild the table with the new column type and swap
+  it into place via rename.
+#}
+{% macro yellowbrick__alter_column_type(relation, column_name, new_column_type) -%}
+  {%- set tmp_relation = postgres__make_relation_with_suffix(relation, "__dbt_alter_tmp", dstring=False) -%}
+  {%- set backup_relation = postgres__make_relation_with_suffix(relation, "__dbt_alter_bak", dstring=False) -%}
+  {%- set columns = adapter.get_columns_in_relation(relation) -%}
+  {%- set column_list = columns | map(attribute='quoted') | join(', ') -%}
+
+  {{ drop_relation_if_exists(tmp_relation) }}
+  {{ drop_relation_if_exists(backup_relation) }}
+
+  {% call statement('alter_column_type') %}
+    create table {{ tmp_relation }} (
+      {%- for column in columns -%}
+        {{ column.quoted }} {{ new_column_type if column.name == column_name else column.data_type }}{{ ", " if not loop.last }}
+      {%- endfor %}
+    );
+
+    insert into {{ tmp_relation }} ({{ column_list }})
+    select {{ column_list }} from {{ relation }};
+
+    alter table {{ relation }} rename to {{ backup_relation.identifier }};
+    alter table {{ tmp_relation }} rename to {{ relation.identifier }};
+  {% endcall %}
+
+  {% do adapter.drop_relation(backup_relation) %}
 {% endmacro %}
+
 
 {% macro yellowbrick__check_schema_exists(information_schema, schema) -%}
   {{ return(postgres__check_schema_exists(information_schema, schema)) }}

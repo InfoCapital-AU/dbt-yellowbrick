@@ -12,13 +12,14 @@ from dbt.exceptions import (
 
 logger = AdapterLogger("Yellowbrick")
 
+
 class YellowbrickAdapter(PostgresAdapter):
     ConnectionManager = YellowbrickConnectionManager
     Relation = YellowbrickRelation
     Column = YellowbrickColumn
 
     # Override to allow cross-database queries which are supported in Yellowbrick
-    # Source: https://github.com/dbt-labs/dbt-core/blob/7317de23a3199fe2f9bb212406dc523f134e7bfb/plugins/postgres/dbt/adapters/postgres/impl.py#L121C1-L128C1    
+    # Source: https://github.com/dbt-labs/dbt-core/blob/7317de23a3199fe2f9bb212406dc523f134e7bfb/plugins/postgres/dbt/adapters/postgres/impl.py#L121C1-L128C1
 
     @available
     def verify_database(self, database):

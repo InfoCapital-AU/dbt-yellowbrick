@@ -1,9 +1,10 @@
 from dataclasses import dataclass, field
 
-from dbt.adapters.base.relation import BaseRelation, Policy
-from dbt.exceptions import DbtRuntimeError
+from dbt.adapters.base.relation import Policy
+from dbt.adapters.postgres.relation import PostgresRelation
 
 MAX_CHARACTERS_IN_IDENTIFIER = 127
+
 
 @dataclass
 class YellowbrickQuotePolicy(Policy):
@@ -13,21 +14,8 @@ class YellowbrickQuotePolicy(Policy):
 
 
 @dataclass(frozen=True, eq=False, repr=False)
-class YellowbrickRelation(BaseRelation):
+class YellowbrickRelation(PostgresRelation):
     quote_policy: Policy = field(default_factory=lambda: YellowbrickQuotePolicy())
-
-    def __post_init__(self):
-        # Check for length of Yellowbrick table/view names.
-        # Check self.type to exclude test relation identifiers
-        if (
-            self.identifier is not None
-            and self.type is not None
-            and len(self.identifier) > self.relation_max_name_length()
-        ):
-            raise DbtRuntimeError(
-                f"Relation name '{self.identifier}' "
-                f"is longer than {self.relation_max_name_length()} characters"
-            )
 
     def relation_max_name_length(self):
         # Max table name length in Yellowbrick is 128 (https://docs.yellowbrick.com/6.7.1/ybd_sqlref/create_table.html)

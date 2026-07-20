@@ -6,13 +6,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `dbt-yellowbrick` is a dbt adapter plugin for Yellowbrick Data Warehouse. It extends the PostgreSQL adapter (`dbt-postgres`) with Yellowbrick-specific features: `DISTRIBUTE`, `CLUSTER`, and `SORT` directives, cross-database query support, and `varchar` type coercion (Yellowbrick does not support the `text` type).
 
-Current version targets dbt-core 1.9.x–1.10.x.
+Current version targets dbt-core 1.12.x (dbt-postgres 1.11.x, dbt-adapters ≥1.24.5). Requires Python 3.10+.
 
 ## Common Commands
 
 ```bash
 # Install for development
-pip install -e . -r dev-requirements.txt
+# NOTE: this repo still uses the legacy pkgutil-style namespace packages
+# (dbt/__init__.py + dbt/adapters/__init__.py use pkgutil.extend_path) for
+# the dbt/dbt.adapters/dbt.include namespaces. Modern setuptools PEP 660
+# editable installs are incompatible with that scheme and will fail to
+# register the adapter (`dbt --version` / `dbt parse` report
+# "Could not find adapter type yellowbrick!"). Force the legacy
+# (PEP 660 "compat") editable mode instead:
+pip install -e . -r dev-requirements.txt --config-settings editable_mode=compat
 
 # Run functional tests (requires a live Yellowbrick instance)
 pytest tests/functional
@@ -43,12 +50,12 @@ The adapter is split into two parts:
   - `_get_catalog_schemas()` supports multiple databases.
   - `valid_incremental_strategies()` returns `["append", "delete+insert"]` (no `merge`).
   - `convert_text_type()` maps `text` → `varchar`.
-- **`relation.py`** — Max identifier length is 127 (Yellowbrick limit is 128); quoting is disabled for all parts.
-- **`column.py`** — Maps the Postgres `name` type to `varchar(64)`.
+- **`relation.py`** — Extends `PostgresRelation` (not `BaseRelation` directly, so it keeps `renameable_relations`/`replaceable_relations` and materialized-view config diffing). Max identifier length is 127 (Yellowbrick limit is 128); quoting is disabled for all parts.
+- **`column.py`** — Extends `PostgresColumn` (keeps its unbounded-`character varying` handling) and additionally maps the Postgres `name` type to `varchar(64)`.
 - **`__init__.py`** — Registers the plugin with `dependencies=['postgres']`.
 
 ### SQL/Jinja layer (`dbt/include/yellowbrick/macros/`)
-- **`adapters.sql`** — Overrides `yellowbrick__create_table_as` to append `DISTRIBUTE`, `CLUSTER ON`, and `SORT ON` clauses. Handles contract enforcement (column constraints). All other adapter macros delegate to Postgres equivalents.
+- **`adapters.sql`** — Overrides `yellowbrick__create_table_as` to append `DISTRIBUTE`, `CLUSTER ON`, and `SORT ON` clauses. Handles contract enforcement (column constraints). Also overrides `yellowbrick__alter_column_type` (used by `on_schema_change: sync_all_columns` and `adapter.expand_target_column_types`, the latter called on every non-full-refresh incremental run): Yellowbrick supports neither `ALTER COLUMN ... TYPE ...` ("SET DATA TYPE is not supported") nor `ALTER TABLE ... DROP COLUMN` ("DROP COLUMN is not supported"), so dbt-core's generic `default__alter_column_type` (add/copy/drop/rename) fails outright — the override instead rebuilds the table with the new column type and swaps it into place via `RENAME`. All other adapter macros delegate to Postgres equivalents.
 - **`materializations/distribute.sql`** — Generates `DISTRIBUTE ON (col)`, `DISTRIBUTE REPLICATE`, or `DISTRIBUTE RANDOM`.
 - **`materializations/cluster.sql`** — Generates `CLUSTER ON (col1, col2, ...)` (up to 4 columns).
 - **`materializations/sort.sql`** — Generates `SORT ON (col1, ...)`.

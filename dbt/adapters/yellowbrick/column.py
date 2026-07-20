@@ -1,6 +1,7 @@
-from dbt.adapters.base import Column
+from dbt.adapters.postgres.column import PostgresColumn
 
-class YellowbrickColumn(Column):
+
+class YellowbrickColumn(PostgresColumn):
     @property
     def data_type(self):
         # on yellowbrick, convert 'name' to varchar(64)
