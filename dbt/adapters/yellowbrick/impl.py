@@ -12,6 +12,9 @@ from dbt.exceptions import (
 
 logger = AdapterLogger("Yellowbrick")
 
+# https://docs.yellowbrick.com: "Declared length of a VARCHAR column exceeds 64000"
+YELLOWBRICK_MAX_VARCHAR_LENGTH = 64000
+
 
 class YellowbrickAdapter(PostgresAdapter):
     ConnectionManager = YellowbrickConnectionManager
@@ -58,4 +61,9 @@ class YellowbrickAdapter(PostgresAdapter):
         # because max() raises ane exception if its argument has no members.
         lens = [len(d.encode("utf-8")) for d in column.values_without_nulls()]
         max_len = max(lens) if lens else 64
-        return "varchar({})".format(max_len)
+        # Yellowbrick has no `ALTER COLUMN ... TYPE` support, so a seed-loaded
+        # varchar column can never be widened later. Double the observed max
+        # length (floor 64) to leave headroom for values that grow over time
+        # (e.g. snapshot updates), capped at Yellowbrick's varchar limit.
+        padded_len = min(max(max_len * 2, 64), YELLOWBRICK_MAX_VARCHAR_LENGTH)
+        return "varchar({})".format(padded_len)
