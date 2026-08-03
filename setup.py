@@ -2,10 +2,11 @@
 import os
 import sys
 import re
+from pathlib import Path
 
-if sys.version_info < (3, 8):
+if sys.version_info < (3, 10):
     print("Error: dbt does not support this version of Python.")
-    print("Please upgrade to Python 3.8 or higher.")
+    print("Please upgrade to Python 3.10 or higher.")
     sys.exit(1)
 
 
@@ -56,30 +57,29 @@ def _get_plugin_version_dict():
         return match.groupdict()
 
 
-def _get_package_version():
-    parts = _get_plugin_version_dict()
-    minor = "{major}.{minor}.1".format(**parts)
-    pre = parts["prekind"] + "1" if parts["prekind"] else ""
-    return f"{minor}{pre}"
+
+# used for this adapter's version
+VERSION = Path(__file__).parent / "dbt/adapters/yellowbrick/__version__.py"
+dbt_core_version = "1.12.0"
+package_version = "1.12.0"
+
+def _plugin_version() -> str:
+    """
+    Pull the package version from the main package version file
+    """
+    attributes = {}
+    exec(VERSION.read_text(), attributes)
+    return attributes["version"]
 
 
-def _get_dbt_core_version():
-    parts = _get_plugin_version_dict()
-    minor = "{major}.{minor}.1".format(**parts)
-    pre = parts["prekind"] + "1" if parts["prekind"] else ""
-    return f"{minor}{pre}"
-
-
-package_name = "dbt_yellowbrick"
-package_version = _get_package_version()
-dbt_core_version = _get_dbt_core_version()
-description = """The Yellowbrick adapter plugin for dbt (data build tool)"""
+package_name = "dbt-yellowbrick"
+description = """The Yellowbrick Data adapter plugin for dbt (data build tool)"""
 
 DBT_PSYCOPG2_NAME = _dbt_psycopg2_name()
 
 setup(
     name=package_name,
-    version=package_version,
+    version=_plugin_version(),
     description=description,
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -96,9 +96,15 @@ setup(
         ]
     },
     install_requires=[
-        "dbt-core~={}".format(dbt_core_version),
-        "dbt-postgres~={}".format(package_version),
-        "{}~=2.8".format(DBT_PSYCOPG2_NAME),
+        "psycopg2-binary>=2.9,<3.0",
+        # dbt-postgres is a functional dependency: YellowbrickAdapter subclasses PostgresAdapter directly
+        "dbt-postgres>=1.11.0,<2.0",
+        "dbt-adapters>=1.24.5,<2.0",
+        # add dbt-core to ensure backwards compatibility of installation, this is not a functional dependency
+        "dbt-core>=1.12.0,<2.0",
+        # installed via dbt-adapters but used directly
+        "dbt-common>=1.37.5,<2.0",
+        "agate>=1.0,<2.0"
     ],
     zip_safe=False,
     classifiers=[
@@ -107,10 +113,10 @@ setup(
         "Operating System :: Microsoft :: Windows",
         "Operating System :: MacOS :: MacOS X",
         "Operating System :: POSIX :: Linux",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13"
     ],
-    python_requires=">=3.8",
+    python_requires=">=3.10",
 )

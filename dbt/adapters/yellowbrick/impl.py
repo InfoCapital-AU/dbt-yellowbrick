@@ -1,7 +1,8 @@
 from dbt.adapters.yellowbrick import YellowbrickConnectionManager
 from dbt.adapters.yellowbrick.relation import YellowbrickRelation
+from dbt.adapters.yellowbrick.column import YellowbrickColumn
 from dbt.adapters.postgres.impl import PostgresAdapter
-from dbt.events import AdapterLogger
+from dbt.adapters.events.logging import AdapterLogger
 from dbt.adapters.base.meta import available
 
 from dbt.exceptions import (
@@ -11,12 +12,17 @@ from dbt.exceptions import (
 
 logger = AdapterLogger("Yellowbrick")
 
+# https://docs.yellowbrick.com: "Declared length of a VARCHAR column exceeds 64000"
+YELLOWBRICK_MAX_VARCHAR_LENGTH = 64000
+
+
 class YellowbrickAdapter(PostgresAdapter):
     ConnectionManager = YellowbrickConnectionManager
     Relation = YellowbrickRelation
+    Column = YellowbrickColumn
 
     # Override to allow cross-database queries which are supported in Yellowbrick
-    # Source: https://github.com/dbt-labs/dbt-core/blob/7317de23a3199fe2f9bb212406dc523f134e7bfb/plugins/postgres/dbt/adapters/postgres/impl.py#L121C1-L128C1    
+    # Source: https://github.com/dbt-labs/dbt-core/blob/7317de23a3199fe2f9bb212406dc523f134e7bfb/plugins/postgres/dbt/adapters/postgres/impl.py#L121C1-L128C1
 
     @available
     def verify_database(self, database):
@@ -55,4 +61,9 @@ class YellowbrickAdapter(PostgresAdapter):
         # because max() raises ane exception if its argument has no members.
         lens = [len(d.encode("utf-8")) for d in column.values_without_nulls()]
         max_len = max(lens) if lens else 64
-        return "varchar({})".format(max_len)
+        # Yellowbrick has no `ALTER COLUMN ... TYPE` support, so a seed-loaded
+        # varchar column can never be widened later. Double the observed max
+        # length (floor 64) to leave headroom for values that grow over time
+        # (e.g. snapshot updates), capped at Yellowbrick's varchar limit.
+        padded_len = min(max(max_len * 2, 64), YELLOWBRICK_MAX_VARCHAR_LENGTH)
+        return "varchar({})".format(padded_len)

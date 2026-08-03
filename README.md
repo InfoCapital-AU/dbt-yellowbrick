@@ -11,7 +11,7 @@ This project is hosted on PyPI, so you should be able to install ```dbt-yellowbr
 
 ```pip install dbt-yellowbrick```
 
-The latest supported version targets dbt-core 1.7.x .
+The latest supported version targets dbt-core 1.12.x .
 
 ## dbt Profile Configuration
 Here is a basic example of a profile configuration (```profiles.yml```) to use with ```dbt-yellowbrick```.

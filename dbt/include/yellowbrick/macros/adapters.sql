@@ -3,34 +3,95 @@ postgres adapter macros: https://github.com/dbt-labs/dbt-core/blob/main/plugins/
 dbt docs: https://docs.getdbt.com/docs/contributing/building-a-new-adapter
 */
 
-{% macro postgres__create_table_as(temporary, relation, sql) -%}
+{% macro create_table_with_constraints(temporary, relation, sql) %}
+    {%- set _dist = config.get('dist') -%}
+    {%- set _sort_col = config.get('sort_col') -%}
+    {%- set _cluster_cols = config.get('cluster_cols') -%}
 
-  {%- set _dist = config.get('dist') -%}
-  {%- set _sort_col = config.get('sort_col') -%}
-  {%- set _cluster_cols = config.get('cluster_cols') -%}
-  {%- set sql_header = config.get('sql_header', none) -%}
+    create {% if temporary -%}temporary{%- endif %} table
+    {{ relation }}
+    {{ get_assert_columns_equivalent(sql) }}
+    {{ get_table_columns_and_constraints() }}
+    {%- set sql = get_select_subquery(sql) %}
+    {{ dist(_dist) }}
+    {{ sort_on(_sort_col) }}
+    {{ cluster_on(_cluster_cols) }};
 
-  {{ sql_header if sql_header is not none }}
+    insert into {{ relation }}
+    {{ sql }};
+{% endmacro %}
+
+{% macro create_table_no_constraints(temporary, relation, sql) %}
+    {%- set _dist = config.get('dist') -%}
+    {%- set _sort_col = config.get('sort_col') -%}
+    {%- set _cluster_cols = config.get('cluster_cols') -%}
+
+    create {% if temporary -%}temporary{%- endif %} table
+    {{ relation }}
+    as (
+        {{ sql }}
+    )
+    {{ dist(_dist) }}
+    {{ sort_on(_sort_col) }}
+    {{ cluster_on(_cluster_cols) }}
+    ;
+{% endmacro %}
+
+{% macro yellowbrick__create_table_as(temporary, relation, sql) -%}
+    {%- set _dist = config.get('dist') -%}
+    {%- set _sort_col = config.get('sort_col') -%}
+    {%- set _cluster_cols = config.get('cluster_cols') -%}
+    {%- set sql_header = config.get('sql_header', none) -%}
+    {%- set contract_config = config.get('contract') -%}
+
+    {{ sql_header if sql_header is not none }}
 
     {{log('Distribution: ' ~ _dist, True)}}
     {{log('Sort: ' ~ _sort_col, True)}}
     {{log('Cluster: ' ~ _cluster_cols, True)}}
 
-  create {% if temporary -%}temporary{%- endif %} table if not exists
-    {{ relation }}
-  as (
-    {{ sql }}
-  )
-  {{ dist(_dist) }}
-  {{ sort_on(_sort_col) }}
-  {{ cluster_on(_cluster_cols) }}
-  ;
+    {% set contract_config = config.get('contract') %}
+    {% if contract_config.enforced %}
+        {{ create_table_with_constraints(temporary, relation, sql) }}
+    {% else %}
+        {{ create_table_no_constraints(temporary, relation, sql) }}
+    {% endif %};
 {%- endmacro %}
 
-{% macro yellowbrick__alter_column_type(relation,column_name,new_column_type) -%}
-'''Changes column name or data type'''
-  {{ return(postgres__alter_column_comment(relation, column_dict)) }}
+{#
+  Yellowbrick supports neither `alter table ... alter column ... type ...`
+  ("SET DATA TYPE is not supported") nor `alter table ... drop column ...`
+  ("DROP COLUMN is not supported"), so dbt-core's default__alter_column_type
+  (which adds a column, copies data, drops the old column, then renames) does
+  not work here. Instead, rebuild the table with the new column type and swap
+  it into place via rename.
+#}
+{% macro yellowbrick__alter_column_type(relation, column_name, new_column_type) -%}
+  {%- set tmp_relation = postgres__make_relation_with_suffix(relation, "__dbt_alter_tmp", dstring=False) -%}
+  {%- set backup_relation = postgres__make_relation_with_suffix(relation, "__dbt_alter_bak", dstring=False) -%}
+  {%- set columns = adapter.get_columns_in_relation(relation) -%}
+  {%- set column_list = columns | map(attribute='quoted') | join(', ') -%}
+
+  {{ drop_relation_if_exists(tmp_relation) }}
+  {{ drop_relation_if_exists(backup_relation) }}
+
+  {% call statement('alter_column_type') %}
+    create table {{ tmp_relation }} (
+      {%- for column in columns -%}
+        {{ column.quoted }} {{ new_column_type if column.name == column_name else column.data_type }}{{ ", " if not loop.last }}
+      {%- endfor %}
+    );
+
+    insert into {{ tmp_relation }} ({{ column_list }})
+    select {{ column_list }} from {{ relation }};
+
+    alter table {{ relation }} rename to {{ backup_relation.identifier }};
+    alter table {{ tmp_relation }} rename to {{ relation.identifier }};
+  {% endcall %}
+
+  {% do adapter.drop_relation(backup_relation) %}
 {% endmacro %}
+
 
 {% macro yellowbrick__check_schema_exists(information_schema, schema) -%}
   {{ return(postgres__check_schema_exists(information_schema, schema)) }}
