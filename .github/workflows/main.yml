@@ -88,7 +88,9 @@ jobs:
           pip install --upgrade setuptools wheel twine check-wheel-contents
           pip --version
       - name: Build distributions
-        run: ./scripts/build-dist.sh
+        run: |
+          rm -rf dist build *.egg-info
+          python setup.py sdist bdist_wheel
 
       - name: Show distributions
         run: ls -lh dist/
@@ -98,7 +100,11 @@ jobs:
           twine check dist/*
       - name: Check wheel contents
         run: |
-          check-wheel-contents dist/*.whl --ignore W007,W008
+          # W002: dbt/__init__.py and dbt/include/__init__.py are intentionally
+          # identical one-line pkgutil namespace-package markers, not duplicated
+          # content. W007/W008: this package intentionally ships namespace
+          # packages (dbt, dbt.adapters, dbt.include).
+          check-wheel-contents dist/*.whl --ignore W002,W007,W008
       - uses: actions/upload-artifact@v4
         with:
           name: dist
